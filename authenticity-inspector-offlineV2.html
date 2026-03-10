@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Authenticity Inspector — Photo Authenticity Tool (Offline)</title>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --border: #2a2a2a;
+    --border-bright: #444;
+    --text-primary: #f0f0f0;
+    --text-secondary: #888;
+    --text-dim: #555;
+    --accent: #ffffff;
+    --warn: #ff4444;
+    --warn-soft: #ff444422;
+    --ok: #aaffaa;
+    --ok-soft: #aaffaa15;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: 'Courier New', Courier, monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 20px 32px;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .logo {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 26px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+
+  .logo-sub {
+    font-size: 10px;
+    letter-spacing: 4px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  .controls {
+    padding: 16px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .font-label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  select {
+    background: var(--surface);
+    border: 1px solid var(--border-bright);
+    color: var(--text-primary);
+    padding: 6px 10px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    outline: none;
+  }
+
+  select:hover { border-color: var(--text-secondary); }
+
+  .btn {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    padding: 8px 18px;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+
+  .btn:hover { opacity: 0.85; }
+  .btn:disabled { opacity: 0.3; cursor: default; }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-bright);
+    padding: 8px 18px;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-ghost:hover { border-color: var(--text-primary); color: var(--text-primary); }
+
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 32px;
+  }
+
+  .dropzone {
+    border: 1px dashed var(--border-bright);
+    width: 100%;
+    max-width: 520px;
+    padding: 64px 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+
+  .dropzone:hover, .dropzone.drag-over {
+    border-color: var(--text-secondary);
+    background: #ffffff08;
+  }
+
+  .dropzone input[type=file] { display: none; }
+
+  .drop-icon { font-size: 36px; margin-bottom: 16px; opacity: 0.4; }
+
+  .drop-title {
+    font-family: Georgia, serif;
+    font-size: 20px;
+    letter-spacing: 3px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+
+  .drop-hint {
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  #results {
+    display: none;
+    width: 100%;
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 32px;
+  }
+
+  .results-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    border: 1px solid var(--border);
+  }
+
+  .photo-preview {
+    border-right: 1px solid var(--border);
+    overflow: hidden;
+    background: #000;
+    min-height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .photo-preview img { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+  .data-panel {
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    background: var(--surface);
+  }
+
+  .verdict {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 1px solid;
+  }
+
+  .verdict.real    { border-color: var(--ok);   background: var(--ok-soft);   color: var(--ok); }
+  .verdict.suspicious { border-color: var(--warn); background: var(--warn-soft); color: var(--warn); }
+  .verdict-icon { font-size: 16px; }
+  .verdict-text { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; font-weight: 600; }
+
+  .flags { display: flex; flex-direction: column; gap: 6px; }
+
+  .flag {
+    font-size: 10px;
+    letter-spacing: 1px;
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .flag.warn { color: var(--warn); background: var(--warn-soft); }
+  .flag.ok   { color: var(--ok);   background: var(--ok-soft); }
+  .flag.info { color: var(--text-secondary); background: transparent; border: 1px solid var(--border); }
+
+  .section-title {
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 6px;
+    margin-bottom: 10px;
+  }
+
+  .data-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    padding: 4px 0;
+    border-bottom: 1px solid #1a1a1a;
+  }
+
+  .data-row:last-child { border-bottom: none; }
+
+  .data-key {
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .data-val { font-size: 12px; color: var(--text-primary); text-align: right; word-break: break-word; }
+  .data-val.missing { color: var(--text-dim); font-style: italic; }
+
+  #card-area {
+    display: none;
+    width: 100%;
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 0 32px 32px;
+  }
+
+  #card-area h2 {
+    font-size: 12px;
+    letter-spacing: 3px;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+    text-transform: uppercase;
+  }
+
+  #card-canvas { display: block; max-width: 100%; border: 1px solid var(--border); }
+
+  .card-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .offline-badge {
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--ok);
+    border: 1px solid var(--ok);
+    padding: 3px 8px;
+    text-transform: uppercase;
+    opacity: 0.7;
+  }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border-bright); }
+
+  .hash-val { font-size: 9px !important; color: var(--text-dim) !important; letter-spacing: 0.5px; }
+
+  @media (max-width: 600px) {
+    .results-grid { grid-template-columns: 1fr; }
+    .photo-preview { border-right: none; border-bottom: 1px solid var(--border); min-height: 200px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div style="cursor:pointer;" onclick="resetTool()">
+    <div class="logo">Authenticity Inspector</div>
+    <div class="logo-sub">Photo Authenticity Tool &nbsp;·&nbsp; <span class="offline-badge">Offline</span></div>
+  </div>
+</header>
+
+<div class="controls">
+  <span class="font-label">Card Font</span>
+  <select id="fontSelect" onchange="updateFont()">
+    <option value="courier">Courier New — Typewriter</option>
+    <option value="georgia">Georgia — Classic Serif</option>
+    <option value="system">System Sans-Serif</option>
+  </select>
+  <span class="font-label" style="margin-left:12px;">Theme</span>
+  <select id="themeSelect" onchange="updateTheme()">
+    <option value="dark">Dark</option>
+    <option value="light">Light</option>
+  </select>
+  <button class="btn-ghost" onclick="document.getElementById('fileInput').click()">Load Photo</button>
+</div>
+
+<div class="main" id="mainArea">
+  <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+    <input type="file" id="fileInput" accept="image/*" onchange="handleFile(this.files[0])">
+    <div class="drop-icon">⬡</div>
+    <div class="drop-title">Drop a photo here</div>
+    <div class="drop-hint">JPEG · PNG · TIFF · Works fully offline</div>
+  </div>
+</div>
+
+<div id="results">
+  <div class="results-grid">
+    <div class="photo-preview">
+      <img id="previewImg" src="" alt="Preview">
+    </div>
+    <div class="data-panel" id="dataPanel"></div>
+  </div>
+</div>
+
+<div id="card-area">
+  <h2>↓ Companion Card — Export as PNG</h2>
+  <canvas id="card-canvas"></canvas>
+  <div class="card-actions">
+    <button class="btn" onclick="downloadCard()">Download Card PNG</button>
+    <span style="font-size:10px;color:var(--text-dim);letter-spacing:1px;">Upload this alongside your photo to show authenticity</span>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════
+//  NATIVE EXIF PARSER — no external library needed
+// ════════════════════════════════════════════════
+
+function parseExif(buffer) {
+  const data = new DataView(buffer);
+  const result = {};
+
+  // Must start with JPEG SOI marker
+  if (data.getUint16(0) !== 0xFFD8) return result;
+
+  let offset = 2;
+  while (offset < data.byteLength - 2) {
+    const marker = data.getUint16(offset);
+    offset += 2;
+
+    // APP1 marker contains EXIF
+    if (marker === 0xFFE1) {
+      const segLen = data.getUint16(offset);
+      // Check for "Exif\0\0" header
+      if (data.getUint32(offset + 2) === 0x45786966 && data.getUint16(offset + 6) === 0x0000) {
+        parseIFD(data, offset + 8, segLen - 8, result);
+      }
+      offset += segLen;
+    } else if ((marker & 0xFF00) === 0xFF00) {
+      offset += data.getUint16(offset);
+    } else {
+      break;
+    }
+  }
+  return result;
+}
+
+function parseIFD(data, exifStart, exifLen, result) {
+  // Determine byte order
+  const byteOrder = data.getUint16(exifStart);
+  const le = byteOrder === 0x4949; // little-endian (Intel)
+
+  const read16  = o => le ? data.getUint16(o, true)  : data.getUint16(o, false);
+  const read32  = o => le ? data.getUint32(o, true)  : data.getUint32(o, false);
+  const readS32 = o => le ? data.getInt32(o, true)   : data.getInt32(o, false);
+
+  const base = exifStart;
+  const ifdOffset = read32(base + 4);
+
+  const TAGS = {
+    0x010F: 'Make', 0x0110: 'Model', 0x0131: 'Software',
+    0x9003: 'DateTimeOriginal', 0x0132: 'DateTime',
+    0x829A: 'ExposureTime', 0x829D: 'FNumber',
+    0x8827: 'ISOSpeedRatings', 0x920A: 'FocalLength',
+    0xA20F: 'FocalLengthIn35mm',
+    0xA405: 'FocalLengthIn35mmFilm',
+    0xA002: 'PixelXDimension', 0xA003: 'PixelYDimension',
+    0x9286: 'UserComment',
+    0x8825: 'GPSInfo',
+    0xA005: 'ExifIFD', // sub-IFD pointer
+    0x8769: 'ExifSubIFD',
+    0xA300: 'FileSource',
+    0x9209: 'Flash',
+    0xA434: 'LensModel',
+  };
+
+  const GPS_TAGS = {
+    0x0001: 'GPSLatitudeRef', 0x0002: 'GPSLatitude',
+    0x0003: 'GPSLongitudeRef', 0x0004: 'GPSLongitude',
+    0x0005: 'GPSAltitudeRef', 0x0006: 'GPSAltitude',
+  };
+
+  function readString(offset, len) {
+    let s = '';
+    for (let i = 0; i < len - 1; i++) {
+      const c = data.getUint8(offset + i);
+      if (c === 0) break;
+      s += String.fromCharCode(c);
+    }
+    return s.trim();
+  }
+
+  function readRational(offset) {
+    const num = read32(offset);
+    const den = read32(offset + 4);
+    return den === 0 ? 0 : num / den;
+  }
+
+  function readValue(type, offset, count) {
+    if (type === 2) return readString(offset, count);
+    if (type === 3) return read16(offset); // SHORT
+    if (type === 4) return read32(offset); // LONG
+    if (type === 5) { // RATIONAL
+      if (count === 1) return readRational(offset);
+      const arr = [];
+      for (let i = 0; i < count; i++) arr.push(readRational(offset + i * 8));
+      return arr;
+    }
+    if (type === 9) return readS32(offset); // SLONG
+    if (type === 10) { // SRATIONAL
+      const num = readS32(offset);
+      const den = readS32(offset + 4);
+      return den === 0 ? 0 : num / den;
+    }
+    return null;
+  }
+
+  function parseDirectory(dirOffset, tagMap) {
+    if (dirOffset + 2 > base + exifLen) return;
+    const count = read16(base + dirOffset);
+    for (let i = 0; i < count; i++) {
+      const entryOffset = base + dirOffset + 2 + i * 12;
+      if (entryOffset + 12 > base + exifLen) break;
+
+      const tag    = read16(entryOffset);
+      const type   = read16(entryOffset + 2);
+      const cnt    = read32(entryOffset + 4);
+      const valOff = entryOffset + 8;
+
+      // Type sizes: 1=BYTE,2=ASCII,3=SHORT,4=LONG,5=RATIONAL(8),7=UNDEF,9=SLONG,10=SRATIONAL(8)
+      const sizes  = [0,1,1,2,4,8,1,1,2,4,8];
+      const sz     = (sizes[type] || 1) * cnt;
+      const dataOffset = sz > 4 ? base + read32(valOff) : valOff;
+
+      const name = tagMap[tag];
+      if (!name) continue;
+
+      // Sub-IFD pointers
+      if (tag === 0x8769 || tag === 0xA005) {
+        parseDirectory(read32(valOff), TAGS);
+        continue;
+      }
+      if (tag === 0x8825) {
+        parseGPSDirectory(read32(valOff));
+        continue;
+      }
+
+      const val = readValue(type, dataOffset, cnt);
+      if (val !== null) result[name] = val;
+    }
+  }
+
+  function parseGPSDirectory(dirOffset) {
+    if (!dirOffset || dirOffset + 2 > exifLen) return;
+    const count = read16(base + dirOffset);
+    for (let i = 0; i < count; i++) {
+      const entryOffset = base + dirOffset + 2 + i * 12;
+      if (entryOffset + 12 > base + exifLen) break;
+
+      const tag    = read16(entryOffset);
+      const type   = read16(entryOffset + 2);
+      const cnt    = read32(entryOffset + 4);
+      const valOff = entryOffset + 8;
+      const sizes  = [0,1,1,2,4,8,1,1,2,4,8];
+      const sz     = (sizes[type] || 1) * cnt;
+      const dataOffset = sz > 4 ? base + read32(valOff) : valOff;
+
+      const name = GPS_TAGS[tag];
+      if (!name) continue;
+
+      if (type === 2) {
+        result[name] = readString(dataOffset, cnt);
+      } else if (type === 5 && cnt === 3) {
+        // DMS array
+        result[name] = [
+          readRational(dataOffset),
+          readRational(dataOffset + 8),
+          readRational(dataOffset + 16),
+        ];
+      }
+    }
+  }
+
+  parseDirectory(ifdOffset, TAGS);
+}
+
+// ════════════════════════════════════════════════
+//  FONT MAP (system fonts only)
+// ════════════════════════════════════════════════
+const FONT_MAP = {
+  'courier':  "'Courier New', Courier, monospace",
+  'georgia':  "Georgia, 'Times New Roman', serif",
+  'system':   "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+};
+
+let currentFont = 'courier';
+let currentTheme = 'dark';
+let lastExifData = null;
+let lastImageFile = null;
+let lastImageEl = null;
+
+function updateFont() {
+  currentFont = document.getElementById('fontSelect').value;
+  if (lastExifData && lastImageEl) renderCard(lastExifData, lastImageEl);
+}
+
+function updateTheme() {
+  currentTheme = document.getElementById('themeSelect').value;
+  if (lastExifData && lastImageEl) renderCard(lastExifData, lastImageEl);
+}
+
+// ── DRAG & DROP ──
+const dz = document.getElementById('dropzone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault();
+  dz.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) handleFile(f);
+});
+
+// ── SHA-256 ──
+async function sha256(file) {
+  const buf = await file.arrayBuffer();
+  const hashBuf = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ── MAIN FILE HANDLER ──
+async function handleFile(file) {
+  if (!file) return;
+  lastImageFile = file;
+
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    lastImageEl = img;
+    document.getElementById('previewImg').src = url;
+    document.getElementById('mainArea').style.display = 'none';
+    document.getElementById('results').style.display = 'block';
+  };
+  img.src = url;
+
+  const hash = await sha256(file);
+
+  // Parse EXIF natively
+  const buf = await file.arrayBuffer();
+  const exifRaw = parseExifFull(buf);
+
+  const make     = exifRaw.Make     || null;
+  const model    = exifRaw.Model    || null;
+  const lens     = exifRaw.LensModel || null;
+  const fnum     = exifRaw.FNumber  || null;
+  const exp      = exifRaw.ExposureTime || null;
+  const iso      = exifRaw.ISOSpeedRatings || null;
+  const flen     = exifRaw.FocalLength || null;
+  const dtOrig   = exifRaw.DateTimeOriginal || exifRaw.DateTime || null;
+  const software = exifRaw.Software || null;
+  const latRef   = exifRaw.GPSLatitudeRef || null;
+  const lat      = exifRaw.GPSLatitude || null;
+  const lonRef   = exifRaw.GPSLongitudeRef || null;
+  const lon      = exifRaw.GPSLongitude || null;
+  const width    = exifRaw.PixelXDimension || null;
+  const height   = exifRaw.PixelYDimension || null;
+
+  const fmtF   = v => v ? `f/${parseFloat(v).toFixed(1)}` : null;
+  const fmtExp = v => {
+    if (!v) return null;
+    const s = parseFloat(v);
+    return s < 1 ? `1/${Math.round(1/s)}s` : `${s}s`;
+  };
+  const fmtFlen = v => v ? `${parseFloat(v).toFixed(0)}mm` : null;
+  const fmtGPS  = (dms, ref) => {
+    if (!dms || !ref) return null;
+    const d = parseFloat(dms[0]), m = parseFloat(dms[1]), s2 = parseFloat(dms[2]);
+    const dec = d + m/60 + s2/3600;
+    return `${(ref === 'S' || ref === 'W') ? '-' : ''}${dec.toFixed(5)}°`;
+  };
+
+  const gpsLat = fmtGPS(lat, latRef);
+  const gpsLon = fmtGPS(lon, lonRef);
+
+  const flags = [];
+  const AI_SOFTWARE = ['stable diffusion','midjourney','dall-e','firefly','imagen',
+    'nightcafe','craiyon','bing image','runway','adobe firefly','generative fill',
+    'canva ai','fotor','luminar neo'];
+  const isAISoftware = software && AI_SOFTWARE.some(s => software.toLowerCase().includes(s));
+  const hasCameraData = !!(make || model);
+  const hasExposure   = !!(exp || fnum || iso);
+
+  if (isAISoftware)                    flags.push({ type: 'warn', msg: `AI software detected: ${software}` });
+  if (!hasCameraData && !hasExposure)  flags.push({ type: 'warn', msg: 'No camera data found — common in AI-generated or screenshot images' });
+  if (!dtOrig && !hasCameraData)       flags.push({ type: 'warn', msg: 'No capture timestamp found' });
+  if (!hasExposure && hasCameraData)   flags.push({ type: 'info', msg: 'Exposure data missing — may have been stripped by a platform or editor' });
+  if (hasCameraData) flags.push({ type: 'ok', msg: `Camera: ${[make, model].filter(Boolean).join(' ')}` });
+  if (hasExposure)   flags.push({ type: 'ok', msg: 'Exposure data recorded by camera' });
+  if (dtOrig)        flags.push({ type: 'ok', msg: `Captured: ${dtOrig}` });
+  if (!gpsLat)       flags.push({ type: 'info', msg: 'No GPS — location not recorded by this camera' });
+  if (gpsLat)        flags.push({ type: 'ok',  msg: `Location recorded: ${gpsLat}, ${gpsLon}` });
+
+  const verdict = flags.some(f => f.type === 'warn') ? 'suspicious' : 'real';
+
+  const exifData = {
+    file: { name: file.name, size: `${(file.size/1024).toFixed(1)} KB`, type: file.type },
+    camera: { make, model, lens },
+    exposure: { fnum: fmtF(fnum), exp: fmtExp(exp), iso: iso ? `ISO ${iso}` : null, flen: fmtFlen(flen) },
+    datetime: dtOrig,
+    gps: { lat: gpsLat, lon: gpsLon },
+    software,
+    dimensions: width && height ? `${width} × ${height}` : null,
+    hash: hash.slice(0, 32) + '…',
+    fullHash: hash,
+    flags,
+    verdict,
+  };
+
+  lastExifData = exifData;
+  renderDataPanel(exifData);
+  renderCard(exifData, lastImageEl);
+  document.getElementById('card-area').style.display = 'block';
+}
+
+// Wrapper that returns the result object
+function parseExifFull(buffer) {
+  const result = {};
+  const data = new DataView(buffer);
+  if (data.getUint16(0) !== 0xFFD8) return result;
+
+  let offset = 2;
+  while (offset < data.byteLength - 4) {
+    const marker = data.getUint16(offset);
+    offset += 2;
+    if (marker === 0xFFE1) {
+      const segLen = data.getUint16(offset);
+      if (data.getUint32(offset + 2) === 0x45786966 && data.getUint16(offset + 6) === 0x0000) {
+        parseIFDInto(data, offset + 8, segLen - 8, result);
+      }
+      offset += segLen;
+    } else if ((marker & 0xFF00) === 0xFF00 && marker !== 0xFFDA) {
+      if (offset + 2 > data.byteLength) break;
+      offset += data.getUint16(offset);
+    } else { break; }
+  }
+  return result;
+}
+
+function parseIFDInto(data, exifStart, exifLen, result) {
+  const byteOrder = data.getUint16(exifStart);
+  const le = byteOrder === 0x4949;
+  const read16  = o => data.getUint16(o, le);
+  const read32  = o => data.getUint32(o, le);
+  const readS32 = o => data.getInt32(o, le);
+  const base = exifStart;
+
+  const TAGS = {
+    0x010F:'Make', 0x0110:'Model', 0x0131:'Software',
+    0x9003:'DateTimeOriginal', 0x0132:'DateTime',
+    0x829A:'ExposureTime', 0x829D:'FNumber',
+    0x8827:'ISOSpeedRatings', 0x920A:'FocalLength',
+    0xA002:'PixelXDimension', 0xA003:'PixelYDimension',
+    0x8825:'GPSInfo', 0x8769:'ExifSubIFD', 0xA005:'InteropIFD',
+    0xA434:'LensModel',
+  };
+  const GPS_TAGS = {
+    0x0001:'GPSLatitudeRef', 0x0002:'GPSLatitude',
+    0x0003:'GPSLongitudeRef', 0x0004:'GPSLongitude',
+  };
+
+  function readStr(offset, len) {
+    let s = '';
+    for (let i = 0; i < len; i++) {
+      const c = data.getUint8(offset + i);
+      if (c === 0) break;
+      s += String.fromCharCode(c);
+    }
+    return s.trim();
+  }
+
+  function readRat(offset) {
+    const n = read32(offset), d = read32(offset + 4);
+    return d ? n / d : 0;
+  }
+
+  function parseDir(dirOffset, tagMap, isGPS) {
+    const absDir = base + dirOffset;
+    if (absDir + 2 > data.byteLength) return;
+    const count = read16(absDir);
+    for (let i = 0; i < count; i++) {
+      const e = absDir + 2 + i * 12;
+      if (e + 12 > data.byteLength) break;
+      const tag = read16(e), type = read16(e+2), cnt = read32(e+4);
+      const sizes = [0,1,1,2,4,8,1,1,2,4,8];
+      const sz = (sizes[type]||1) * cnt;
+      const valOff = e + 8;
+      const dataOff = sz > 4 ? base + read32(valOff) : valOff;
+
+      if (tag === 0x8769 || tag === 0xA005) { parseDir(read32(valOff), TAGS, false); continue; }
+      if (tag === 0x8825) { parseDir(read32(valOff), GPS_TAGS, true); continue; }
+
+      const name = tagMap[tag];
+      if (!name) continue;
+
+      if (type === 2) { result[name] = readStr(dataOff, cnt); }
+      else if (type === 3) { result[name] = read16(dataOff); }
+      else if (type === 4) { result[name] = read32(dataOff); }
+      else if (type === 5) {
+        if (cnt === 1) result[name] = readRat(dataOff);
+        else if (isGPS && cnt === 3) result[name] = [readRat(dataOff), readRat(dataOff+8), readRat(dataOff+16)];
+      }
+    }
+  }
+
+  const ifdOffset = read32(base + 4);
+  parseDir(ifdOffset, TAGS, false);
+}
+
+// ── DATA PANEL (UI) ──
+function renderDataPanel(d) {
+  const panel = document.getElementById('dataPanel');
+  const val = (v, cls='') => v
+    ? `<span class="data-val ${cls}">${v}</span>`
+    : `<span class="data-val missing">—</span>`;
+  const row = (key, value) => `
+    <div class="data-row">
+      <span class="data-key">${key}</span>${val(value)}
+    </div>`;
+  const flags = d.flags.map(f => {
+    const icon = f.type === 'warn' ? '⚠' : f.type === 'ok' ? '✓' : '·';
+    return `<div class="flag ${f.type}">${icon} ${f.msg}</div>`;
+  }).join('');
+
+  panel.innerHTML = `
+    <div class="verdict ${d.verdict}">
+      <span class="verdict-icon">${d.verdict === 'real' ? '✓' : '⚠'}</span>
+      <span class="verdict-text">${d.verdict === 'real' ? 'Camera data verified — real photo' : 'Issues detected — see flags below'}</span>
+    </div>
+    <div class="flags">${flags}</div>
+    <div>
+      <div class="section-title">Camera</div>
+      ${row('Make', d.camera.make)}${row('Model', d.camera.model)}${row('Lens', d.camera.lens)}
+    </div>
+    <div>
+      <div class="section-title">Exposure</div>
+      ${row('Aperture', d.exposure.fnum)}${row('Shutter', d.exposure.exp)}${row('ISO', d.exposure.iso)}${row('Focal Length', d.exposure.flen)}
+    </div>
+    <div>
+      <div class="section-title">Capture</div>
+      ${row('Date/Time', d.datetime)}${row('Software', d.software)}${row('Dimensions', d.dimensions)}
+    </div>
+    <div>
+      <div class="section-title">Location</div>
+      ${row('Latitude', d.gps.lat)}${row('Longitude', d.gps.lon)}
+    </div>
+    <div>
+      <div class="section-title">File</div>
+      ${row('Name', d.file.name)}${row('Size', d.file.size)}
+      <div class="data-row">
+        <span class="data-key">SHA-256</span>
+        <span class="data-val hash-val" style="display:flex;align-items:center;gap:8px;">
+          <span>${d.hash}</span>
+          <button onclick="copyHash()" style="background:transparent;border:1px solid var(--border-bright);color:var(--text-dim);font-family:'Courier New',monospace;font-size:9px;letter-spacing:1px;padding:2px 6px;cursor:pointer;white-space:nowrap;" id="copyHashBtn">COPY FULL</button>
+        </span>
+      </div>
+    </div>
+  `;
+}
+
+// ── CARD RENDERER ──
+function renderCard(d, img) {
+  const canvas = document.getElementById('card-canvas');
+  const ctx = canvas.getContext('2d');
+  const aspect = img.naturalWidth / img.naturalHeight;
+  const cardW = 2400;
+  const cardH = Math.round(cardW / aspect);
+  canvas.width = cardW;
+  canvas.height = cardH;
+
+  const isDark = currentTheme === 'dark';
+  const BG     = isDark ? '#0a0a0a' : '#f5f4f0';
+  const FG     = isDark ? '#f0f0f0' : '#111111';
+  const DIM    = isDark ? '#555555' : '#999999';
+  const DIMMER = isDark ? '#2a2a2a' : '#dddddd';
+  const BORDER = isDark ? '#222222' : '#cccccc';
+  const WARN   = '#ff4444';
+  const OK_C   = isDark ? '#88cc88' : '#228822';
+
+  // Font stacks for canvas
+  const fontFamilies = {
+    'courier': 'Courier New',
+    'georgia': 'Georgia',
+    'system':  '-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
+  };
+  const font = fontFamilies[currentFont] || 'Courier New';
+
+  ctx.fillStyle = BG;
+  ctx.fillRect(0, 0, cardW, cardH);
+  ctx.strokeStyle = BORDER; ctx.lineWidth = 1;
+  ctx.strokeRect(0.5, 0.5, cardW-1, cardH-1);
+
+  const pad = Math.round(cardH * 0.055);
+  let y = pad;
+
+  // Header
+  ctx.fillStyle = DIM;
+  ctx.font = `bold ${Math.round(cardH * 0.024)}px ${font}`;
+  ctx.letterSpacing = '4px';
+  ctx.fillText('AUTHENTICITY INSPECTOR', pad, y + Math.round(cardH * 0.024));
+
+  y += Math.round(cardH * 0.040);
+  ctx.strokeStyle = BORDER; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(cardW-pad, y); ctx.stroke();
+  y += Math.round(cardH * 0.032);
+
+  // Verdict badge
+  const badgeH = Math.round(cardH * 0.060);
+  const isReal = d.verdict === 'real';
+  ctx.fillStyle = isReal ? (isDark ? 'rgba(170,255,170,0.08)' : 'rgba(0,120,0,0.07)') : (isDark ? 'rgba(255,68,68,0.10)' : 'rgba(200,0,0,0.07)');
+  ctx.fillRect(pad, y, cardW-pad*2, badgeH);
+  ctx.strokeStyle = isReal ? OK_C : WARN; ctx.lineWidth = 2;
+  ctx.strokeRect(pad+0.5, y+0.5, cardW-pad*2-1, badgeH-1);
+  const vFontSz = Math.round(cardH * 0.022);
+  const vText = isReal ? '✓  CAMERA DATA VERIFIED — REAL PHOTO' : '⚠  ISSUES DETECTED';
+  const badgeInnerW = cardW - pad*2 - 32;
+
+  // Scale font down until text fits inside badge
+  let vSize = vFontSz;
+  ctx.font = `bold ${vSize}px ${font}`;
+  while (ctx.measureText(vText).width > badgeInnerW && vSize > 10) {
+    vSize -= 1;
+    ctx.font = `bold ${vSize}px ${font}`;
+  }
+
+  ctx.fillStyle = isReal ? OK_C : WARN;
+  ctx.letterSpacing = '2px';
+  ctx.fillText(vText, pad+16, y + badgeH/2 + vSize*0.36);
+  y += badgeH + Math.round(cardH * 0.035);
+
+  // Warn flags
+  const warns = d.flags.filter(f => f.type === 'warn');
+  if (warns.length > 0) {
+    const flagSz = Math.round(cardH * 0.017);
+    ctx.font = `${flagSz}px ${font}`; ctx.letterSpacing = '1px';
+    warns.forEach(f => {
+      ctx.fillStyle = WARN;
+      ctx.fillText(`⚠  ${f.msg}`, pad, y);
+      y += Math.round(flagSz * 1.9);
+    });
+    y += Math.round(cardH * 0.015);
+  }
+
+  // Data columns
+  const orDash = v => v || '—';
+  const colW = (cardW - pad*2) / 2;
+  const keyFontSz = Math.round(cardH * 0.015);
+  const valFontSz = Math.round(cardH * 0.018);
+  const secSz = Math.round(cardH * 0.014);
+  const rowH = Math.round(cardH * 0.044);
+
+  const leftSections = [
+    { title: 'CAMERA',   rows: [['Make', orDash(d.camera.make)], ['Model', orDash(d.camera.model)], ['Lens', orDash(d.camera.lens)]] },
+    { title: 'EXPOSURE', rows: [['Aperture', orDash(d.exposure.fnum)], ['Shutter', orDash(d.exposure.exp)], ['ISO', orDash(d.exposure.iso)], ['Focal Len', orDash(d.exposure.flen)]] },
+  ];
+  const rightSections = [
+    { title: 'CAPTURE',  rows: [['Date/Time', orDash(d.datetime)], ['Software', orDash(d.software)], ['Size', orDash(d.dimensions)], ['File', d.file.name]] },
+    { title: 'LOCATION', rows: [['Latitude', orDash(d.gps.lat)], ['Longitude', orDash(d.gps.lon)]] },
+  ];
+
+  [leftSections, rightSections].forEach((secs, ci) => {
+    let cy = y;
+    const rx = pad + ci * colW;
+    const valX = rx + colW * 0.40;
+    const maxValW = colW - colW * 0.40 - 20; // space from valX to end of column
+
+    secs.forEach(sec => {
+      ctx.font = `${secSz}px ${font}`; ctx.letterSpacing = '3px'; ctx.fillStyle = DIM;
+      ctx.fillText(sec.title, rx, cy);
+      cy += Math.round(secSz * 1.7);
+      ctx.strokeStyle = DIMMER; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(rx, cy); ctx.lineTo(rx + colW - 20, cy); ctx.stroke();
+      cy += Math.round(cardH * 0.012);
+      sec.rows.forEach(([k, v]) => {
+        const miss = v === '—';
+        ctx.font = `${keyFontSz}px ${font}`; ctx.letterSpacing = '2px'; ctx.fillStyle = DIM;
+        ctx.fillText(k.toUpperCase(), rx, cy + rowH * 0.6);
+        ctx.font = `${valFontSz}px ${font}`; ctx.letterSpacing = '0.5px';
+        ctx.fillStyle = miss ? DIMMER : FG;
+
+        // Wrap value across up to 2 lines
+        const words = v.split(/\s+/);
+        let line1 = '', line2 = '';
+        for (const word of words) {
+          const test = line1 ? line1 + ' ' + word : word;
+          if (ctx.measureText(test).width <= maxValW) {
+            line1 = test;
+          } else {
+            // Try adding to line2
+            const test2 = line2 ? line2 + ' ' + word : word;
+            // If line2 would overflow, truncate with ellipsis
+            if (ctx.measureText(test2).width <= maxValW) {
+              line2 = test2;
+            } else {
+              let t = test2;
+              while (ctx.measureText(t).width > maxValW && t.length > 4) t = t.slice(0,-2)+'…';
+              line2 = t;
+              break;
+            }
+          }
+        }
+
+        if (line2) {
+          // Two lines — draw them centred in the row
+          ctx.fillText(line1, valX, cy + rowH * 0.38);
+          ctx.fillText(line2, valX, cy + rowH * 0.72);
+        } else {
+          ctx.fillText(line1, valX, cy + rowH * 0.6);
+        }
+        cy += rowH;
+      });
+      cy += Math.round(cardH * 0.028);
+    });
+  });
+
+  // Footer
+  const footerY = cardH - Math.round(cardH * 0.045);
+  ctx.strokeStyle = BORDER; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad, footerY-8); ctx.lineTo(cardW-pad, footerY-8); ctx.stroke();
+  ctx.font = `${Math.round(cardH * 0.013)}px ${font}`; ctx.letterSpacing = '1px';
+  ctx.fillStyle = DIM;
+  ctx.fillText(`SHA-256: ${d.hash}`, pad, footerY + Math.round(cardH * 0.018));
+  ctx.fillStyle = DIMMER; ctx.textAlign = 'right';
+  ctx.fillText('authenticity-inspector · offline', cardW-pad, footerY + Math.round(cardH * 0.018));
+  ctx.textAlign = 'left';
+}
+
+function copyHash() {
+  if (!lastExifData?.fullHash) return;
+  navigator.clipboard.writeText(lastExifData.fullHash).then(() => {
+    const btn = document.getElementById('copyHashBtn');
+    btn.textContent = 'COPIED!';
+    btn.style.color = 'var(--ok)';
+    btn.style.borderColor = 'var(--ok)';
+    setTimeout(() => { btn.textContent = 'COPY FULL'; btn.style.color = ''; btn.style.borderColor = ''; }, 2000);
+  });
+}
+
+function resetTool() {
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('card-area').style.display = 'none';
+  document.getElementById('mainArea').style.display = 'flex';
+  document.getElementById('previewImg').src = '';
+  document.getElementById('fileInput').value = '';
+  lastExifData = null; lastImageFile = null; lastImageEl = null;
+}
+
+function downloadCard() {
+  const canvas = document.getElementById('card-canvas');
+  const link = document.createElement('a');
+  const base = (lastImageFile?.name || 'photo').replace(/\.[^.]+$/, '');
+  link.download = `${base}_authenticity.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+</script>
+</body>
+</html>
